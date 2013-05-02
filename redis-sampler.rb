@@ -56,9 +56,10 @@ class RedisSampler
 
     def size_of_object(key)
       debugout = @redis.debug("object", key)
-      start = debugout.index("serializedlength:") + "serializelength:".length
+      start = debugout.index("serializedlength:") + "serializelength:".length + 1
       finish = debugout.index(" ", start)
-      debugout.slice(start, finish).to_i
+      size = debugout[start..finish]
+      size.to_i
     end
 
 
