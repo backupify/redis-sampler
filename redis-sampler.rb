@@ -34,6 +34,7 @@ class RedisSampler
     def initialize(r,samplesize)
         @redis = r
         @samplesize = samplesize
+        @sizes = {}
         @types = {}
         @expires = {}
         @zset_card = {}
@@ -53,6 +54,14 @@ class RedisSampler
         hash[item] += 1
     end
 
+    def size_of_object(key)
+      debugout = @redis.debug("object", key)
+      start = debugout.index("serializedlength:") + "serializelength:".length
+      finish = debugout.index(" ", start)
+      debugout.slice(start, finish).to_i
+    end
+
+
     def sample
         @samplesize.times {
             k = @redis.randomkey
@@ -65,6 +74,7 @@ class RedisSampler
             x = 'unknown' if x.to_i == -1
             incr_freq_table(@types,t)
             incr_freq_table(@expires,x)
+            incr_freq_table(@sizes,size_of_object(k))
             case t
             when 'zset'
                 p = @redis.pipelined {
@@ -96,7 +106,7 @@ class RedisSampler
             when 'hash'
                 l = @redis.hlen(k)
                 incr_freq_table(@hash_len,l) if l != 0
-                if l >= 32
+                if l >= 1
                     field = @redis.hkeys(k)[0]
                     if field
                         incr_freq_table(@hash_fsize,field.length)
@@ -104,8 +114,8 @@ class RedisSampler
                         incr_freq_table(@hash_vsize,val.length) if val
                     end
                 else
-                    incr_freq_table(@hash_fsize,'unknown')
-                    incr_freq_table(@hash_vsize,'unknown')
+                    incr_freq_table(@hash_fsize,'empty')
+                    incr_freq_table(@hash_vsize,'empty')
                 end
             when 'string'
                 incr_freq_table(@string_elesize,@redis.strlen(k))
@@ -193,6 +203,7 @@ class RedisSampler
     end
 
     def stats
+        render_freq_table("Sizes",@sizes)
         render_freq_table("Types",@types)
         render_freq_table("Expires",@expires)
         render_avg(@expires)
