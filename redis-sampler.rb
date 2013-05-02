@@ -77,7 +77,7 @@ class RedisSampler
             incr_freq_table(@expires,x)
             size = size_of_object(k)
             incr_freq_table(@sizes,size)
-            puts "Found large key: #{k} size: #{size}" if size > 1024
+            puts "Found large key: #{k} size: #{size}" if size > 1024**2
             case t
             when 'zset'
                 p = @redis.pipelined {
